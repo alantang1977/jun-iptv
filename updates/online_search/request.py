@@ -4,7 +4,6 @@ from time import time
 from tqdm.asyncio import tqdm_asyncio
 
 import utils.constants as constants
-from updates.proxy import get_proxy, get_proxy_next
 from utils.channel import (
     format_channel_name,
     get_results_from_soup,
@@ -13,7 +12,7 @@ from utils.channel import (
 from utils.config import config
 from utils.driver.setup import setup_driver
 from utils.driver.tools import search_submit
-from utils.requests.tools import get_soup_requests, close_session
+from utils.requests.tools import get_soup_requests
 from utils.retry import (
     retry_func,
     find_clickable_element_with_retry,
@@ -38,45 +37,37 @@ async def get_channels_by_online_search(names, callback=None):
     pageUrl = constants.foodie_url
     if not pageUrl:
         return channels
-    proxy = None
-    open_proxy = config.open_proxy
     open_driver = config.open_driver
     page_num = config.online_search_page_num
-    if open_proxy:
-        proxy = await get_proxy(pageUrl, best=True, with_test=True)
     start_time = time()
 
     def process_channel_by_online_search(name):
-        nonlocal proxy
         info_list = []
         driver = None
+        page_soup = None
         try:
             if open_driver:
-                driver = setup_driver(proxy)
+                driver = setup_driver()
                 try:
                     retry_func(
                         lambda: driver.get(pageUrl), name=f"online search:{name}"
                     )
                 except Exception as e:
-                    if open_proxy:
-                        proxy = get_proxy_next()
+                    print(e)
                     driver.close()
                     driver.quit()
-                    driver = setup_driver(proxy)
+                    driver = setup_driver()
                     driver.get(pageUrl)
                 search_submit(driver, name)
             else:
-                page_soup = None
                 request_url = f"{pageUrl}?s={name}"
                 try:
                     page_soup = retry_func(
-                        lambda: get_soup_requests(request_url, proxy=proxy),
+                        lambda: get_soup_requests(request_url),
                         name=f"online search:{name}",
                     )
                 except Exception as e:
-                    if open_proxy:
-                        proxy = get_proxy_next()
-                    page_soup = get_soup_requests(request_url, proxy=proxy)
+                    print(e)
                 if not page_soup:
                     print(f"{name}:Request fail.")
                     return
@@ -104,7 +95,7 @@ async def get_channels_by_online_search(names, callback=None):
                             else:
                                 request_url = f"{pageUrl}?s={name}&page={page}"
                                 page_soup = retry_func(
-                                    lambda: get_soup_requests(request_url, proxy=proxy),
+                                    lambda: get_soup_requests(request_url),
                                     name=f"online search:{name}, page:{page}",
                                 )
                         soup = (
@@ -139,11 +130,9 @@ async def get_channels_by_online_search(names, callback=None):
                                         retries=1,
                                     )
                                     if next_page_link:
-                                        if open_proxy:
-                                            proxy = get_proxy_next()
                                         driver.close()
                                         driver.quit()
-                                        driver = setup_driver(proxy)
+                                        driver = setup_driver()
                                         search_submit(driver, name)
                                 retries += 1
                                 continue
@@ -198,7 +187,5 @@ async def get_channels_by_online_search(names, callback=None):
             data = result.get("data", [])
             if name:
                 channels[name] = data
-    if not open_driver:
-        close_session()
     pbar.close()
     return channels

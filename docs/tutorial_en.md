@@ -2,9 +2,13 @@
 
 [中文](./tutorial.md) | English
 
-IPTV-API is a highly customizable IPTV interface update project 📺, allowing you to customize channel menus,
-automatically obtain live sources, and generate available results after speed testing and validation, achieving a 『✨
-instant playback experience 🚀』.
+<div align="center">
+  <img src="../static/images/logo.png" alt="logo"/>
+  <h1 align="center">IPTV-API</h1>
+</div>
+
+📺 IPTV live-source auto-update platform — 🤖 fully automated collection, filtering, speed-testing, and generation
+pipeline 🚀. Supports extensive customization; paste the resulting URL into your player to watch
 
 There are four installation and operation methods in total, choose the one that suits you.
 
@@ -109,7 +113,7 @@ Like editing templates, modify the runtime configuration.
 ![Edit source_file configuration](./images/edit-user-source-file.png 'Edit source_file configuration')
 
 Adjust the configuration as needed, here is the default configuration description:
-[Configuration parameters](./config.md)
+[Configuration parameters](./config_en.md)
 
 > [!NOTE]
 > 1. For enabling interface information display, since some players (such as `PotPlayer`) do not support parsing
@@ -136,6 +140,18 @@ Adjust the configuration as needed, here is the default configuration descriptio
 
   The channel interface data comes from local files, and the program will read the channel interface data in sequence.
   ![Local sources](./images/local.png 'Local sources')
+
+
+- EPG Source (`config/epg.txt`)
+
+  The source of program guide information. The program will sequentially fetch the program guide data from the
+  subscription addresses in the file and aggregate the output.
+
+
+- Channel Aliases (`config/alias.txt`)
+
+  A list of aliases for channel names, used to map multiple names to a single name when fetching from the interface,
+  improving the fetch volume and accuracy. Format: TemplateChannelName,Alias1,Alias2,Alias3
 
 
 - Blacklist (`config/blacklist.txt`)
@@ -293,8 +309,8 @@ pipenv run service
 
 ## GUI Software
 
-1. Download the [IPTV-API update software](https://github.com/Guovin/iptv-api/releases), open the software, and click
-   update to complete the update.
+1. Download the [IPTV-API Update Software](https://github.com/Guovin/iptv-api/releases), open the software, and click
+   Start to perform the update.
 
 2. Or run the following command in the project directory to open the GUI software:
 
@@ -346,27 +362,33 @@ Taking the host path /etc/docker as an example:
 
 #### Environment Variables:
 
-| Variable    | Description          | Default Value      |
-|:------------|:---------------------|:-------------------|
-| APP_HOST    | Service host address | "http://localhost" |
-| APP_PORT    | Service port         | 8000               |
-| UPDATE_CRON | Scheduled task time  | "0 22,10 * * *"    |
+| Variable | Description          | Default Value    |
+|:---------|:---------------------|:-----------------|
+| APP_HOST | Service host address | Local machine IP |
+| APP_PORT | Service port         | 8000             |
+
+In addition to the environment variables listed above, you can also override the [configuration items](./config_en.md)
+in the
+configuration file via environment variables.
 
 ### 3. Update Results
 
-| Endpoint  | Description           |
-|:----------|:----------------------|
-| /         | Default endpoint      |
-| /m3u      | m3u format endpoint   |
-| /txt      | txt format endpoint   |
-| /ipv4     | ipv4 default endpoint |
-| /ipv6     | ipv6 default endpoint |
-| /ipv4/txt | ipv4 txt endpoint     |
-| /ipv6/txt | ipv6 txt endpoint     |
-| /ipv4/m3u | ipv4 m3u endpoint     |
-| /ipv6/m3u | ipv6 m3u endpoint     |
-| /content  | Endpoint content      |
-| /log      | Speed test log        |
+| Endpoint        | Description                                     |
+|:----------------|:------------------------------------------------|
+| /               | Default endpoint                                |
+| /m3u            | m3u format endpoint                             |
+| /txt            | txt format endpoint                             |
+| /ipv4           | ipv4 default endpoint                           |
+| /ipv6           | ipv6 default endpoint                           |
+| /ipv4/txt       | ipv4 txt endpoint                               |
+| /ipv6/txt       | ipv6 txt endpoint                               |
+| /ipv4/m3u       | ipv4 m3u endpoint                               |
+| /ipv6/m3u       | ipv6 m3u endpoint                               |
+| /content        | Endpoint content                                |
+| /log/result     | Log of valid results                            |
+| /log/speed-test | Log of all interfaces involved in speed testing |
+| /log/statistic  | Log of statistics results                       |
+| /log/nomatch    | Log of unmatched channels                       |
 
 - RTMP Streaming:
 

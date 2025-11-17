@@ -3,7 +3,8 @@ import sys
 
 sys.path.append(os.path.dirname(sys.path[0]))
 from flask import Flask, send_from_directory, make_response, jsonify, redirect
-from utils.tools import get_result_file_content, get_ip_address, resource_path
+from utils.tools import get_result_file_content, get_ip_address, resource_path, join_url, add_port_to_url, \
+    get_url_without_scheme
 from utils.config import config
 import utils.constants as constants
 from utils.db import get_db_connection, return_db_connection
@@ -18,11 +19,15 @@ nginx_dir = resource_path(os.path.join('utils', 'nginx-rtmp-win32'))
 nginx_path = resource_path(os.path.join(nginx_dir, 'nginx.exe'))
 stop_path = resource_path(os.path.join(nginx_dir, 'stop.bat'))
 hls_temp_path = resource_path(os.path.join(nginx_dir, 'temp/hls')) if sys.platform == "win32" else '/tmp/hls'
-os.makedirs(f"{constants.output_dir}/data", exist_ok=True)
 
 live_running_streams = OrderedDict()
 hls_running_streams = OrderedDict()
 MAX_STREAMS = 10
+
+rtmp_hls_file_url = join_url(add_port_to_url(config.app_host, 8080), 'hls/')
+app_rtmp_url = get_url_without_scheme(add_port_to_url(config.app_host, 1935))
+rtmp_hls_id_url = f"rtmp://{join_url(app_rtmp_url, 'hls/')}"
+rtmp_live_id_url = f"rtmp://{join_url(app_rtmp_url, 'live/')}"
 
 
 @app.route("/")
@@ -166,10 +171,56 @@ def show_content():
     )
 
 
-@app.route("/log")
-def show_log():
-    if os.path.exists(constants.sort_log_path):
-        with open(constants.sort_log_path, "r", encoding="utf-8") as file:
+@app.route("/epg/epg.xml")
+def show_epg():
+    return get_result_file_content(path=constants.epg_result_path, file_type="xml", show_content=False)
+
+
+@app.route("/epg/epg.gz")
+def show_epg_gz():
+    return get_result_file_content(path=constants.epg_gz_result_path, file_type="gz", show_content=False)
+
+
+@app.route("/log/result")
+def show_result_log():
+    if os.path.exists(constants.result_log_path):
+        with open(constants.result_log_path, "r", encoding="utf-8") as file:
+            content = file.read()
+    else:
+        content = constants.waiting_tip
+    response = make_response(content)
+    response.mimetype = "text/plain"
+    return response
+
+
+@app.route("/log/speed-test")
+def show_speed_log():
+    if os.path.exists(constants.speed_test_log_path):
+        with open(constants.speed_test_log_path, "r", encoding="utf-8") as file:
+            content = file.read()
+    else:
+        content = constants.waiting_tip
+    response = make_response(content)
+    response.mimetype = "text/plain"
+    return response
+
+
+@app.route("/log/statistic")
+def show_statistic_log():
+    if os.path.exists(constants.statistic_log_path):
+        with open(constants.statistic_log_path, "r", encoding="utf-8") as file:
+            content = file.read()
+    else:
+        content = constants.waiting_tip
+    response = make_response(content)
+    response.mimetype = "text/plain"
+    return response
+
+
+@app.route("/log/nomatch")
+def show_nomatch_log():
+    if os.path.exists(constants.nomatch_log_path):
+        with open(constants.nomatch_log_path, "r", encoding="utf-8") as file:
             content = file.read()
     else:
         content = constants.waiting_tip
@@ -223,10 +274,11 @@ def run_live(channel_id):
     if not url:
         return jsonify({'Error': 'Url not found'}), 400
     headers = data.get("headers", None)
+    channel_rtmp_url = join_url(rtmp_live_id_url, channel_id)
     if channel_id in live_running_streams:
         process = live_running_streams[channel_id]
         if process.poll() is None:
-            return redirect(f'rtmp://localhost:1935/live/{channel_id}')
+            return redirect(channel_rtmp_url)
         else:
             del live_running_streams[channel_id]
     cleanup_streams(live_running_streams)
@@ -240,7 +292,7 @@ def run_live(channel_id):
         '-c:a', 'copy',
         '-f', 'flv',
         '-flvflags', 'no_duration_filesize',
-        f'rtmp://localhost:1935/live/{channel_id}'
+        channel_rtmp_url
     ]
     try:
         process = subprocess.Popen(
@@ -255,7 +307,7 @@ def run_live(channel_id):
             daemon=True
         ).start()
         live_running_streams[channel_id] = process
-        return redirect(f'rtmp://localhost:1935/live/{channel_id}')
+        return redirect(channel_rtmp_url)
     except Exception as e:
         return jsonify({'Error': str(e)}), 500
 
@@ -275,7 +327,7 @@ def run_hls(channel_id):
         process = hls_running_streams[channel_id]
         if process.poll() is None:
             if os.path.exists(m3u8_path):
-                return redirect(f'http://localhost:8080/hls/{channel_file}')
+                return redirect(f'{join_url(rtmp_hls_file_url, channel_file)}')
             else:
                 return jsonify({'status': 'pending', 'message': 'Stream is starting'}), 202
         else:
@@ -292,7 +344,7 @@ def run_hls(channel_id):
         '-c:a', 'copy',
         '-f', 'flv',
         '-flvflags', 'no_duration_filesize',
-        f'rtmp://localhost:1935/hls/{channel_id}'
+        join_url(rtmp_hls_id_url, channel_id)
     ]
     try:
         process = subprocess.Popen(
@@ -326,7 +378,7 @@ def stop_rtmp_service():
 
 def run_service():
     try:
-        if not os.environ.get("GITHUB_ACTIONS"):
+        if not os.getenv("GITHUB_ACTIONS"):
             if config.open_rtmp and sys.platform == "win32":
                 original_dir = os.getcwd()
                 try:
@@ -337,19 +389,12 @@ def run_service():
                 finally:
                     os.chdir(original_dir)
             ip_address = get_ip_address()
-            print(f"📄 Result content: {ip_address}/content")
-            print(f"📄 Log content: {ip_address}/log")
-            if config.open_m3u_result:
-                print(f"🚀 M3u api: {ip_address}/m3u")
-            print(f"🚀 Txt api: {ip_address}/txt")
+            print(f"📄 Speed test log: {ip_address}/log")
             if config.open_rtmp:
-                if config.open_m3u_result:
-                    print(f"🚀 Rtmp live M3u api: {ip_address}/live/m3u")
-                    print(f"🚀 Rtmp hls M3u api: {ip_address}/hls/m3u")
-                print(f"🚀 Rtmp live Txt api: {ip_address}/live/txt")
-                print(f"🚀 Rtmp hls Txt api: {ip_address}/hls/txt")
-            print(f"🚀 IPv4 Txt api: {ip_address}/ipv4")
-            print(f"🚀 IPv6 Txt api: {ip_address}/ipv6")
+                print(f"🚀 Live api: {ip_address}/live")
+                print(f"🚀 HLS api: {ip_address}/hls")
+            print(f"🚀 IPv4 api: {ip_address}/ipv4")
+            print(f"🚀 IPv6 api: {ip_address}/ipv6")
             print(f"✅ You can use this url to watch IPTV 📺: {ip_address}")
             app.run(host="0.0.0.0", port=config.app_port)
     except Exception as e:

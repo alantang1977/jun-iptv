@@ -2,7 +2,12 @@
 
 [English](./tutorial_en.md) | 中文
 
-IPTV-API是一个可高度自定义的IPTV接口更新项目📺，自定义频道菜单，自动获取直播源，测速验效后生成可用的结果，可实现『✨秒播级体验🚀』
+<div align="center">
+  <img src="../static/images/logo.png" alt="logo"/>
+  <h1 align="center">IPTV-API</h1>
+</div>
+
+📺IPTV直播源自动更新平台，『🤖全自动采集、筛选、测速、生成流程🚀』，支持丰富的个性化配置，将结果地址输入播放器即可观看
 
 以下一共4种安装运行方式，选择一种适合您的即可
 
@@ -117,6 +122,16 @@ IPTV-API是一个可高度自定义的IPTV接口更新项目📺，自定义频�
 
   频道接口数据来源于本地文件，程序将依次读取其中的频道接口数据
   ![本地源](./images/local.png '本地源')
+
+
+- EPG源（`config/epg.txt`）
+
+  频道预告信息数据来源，程序将依次获取文件中订阅地址的频道预告数据，进行汇总输出
+
+
+- 频道别名（`config/alias.txt`）
+
+  频道名称的别名名单，用于获取接口时将多种名称映射为一个名称的结果，可以提升获取量与准确率，格式：模板频道名称,别名1,别名2,别名3
 
 
 - 黑名单（`config/blacklist.txt`）
@@ -255,7 +270,7 @@ pipenv run service
 
 ## GUI 软件
 
-1. 下载[IPTV-API 更新软件](https://github.com/Guovin/iptv-api/releases)，打开软件，点击更新，即可完成更新
+1. 下载[IPTV-API 更新软件](https://github.com/Guovin/iptv-api/releases)，打开软件，点击启动，即可进行更新
 
 2. 或者在项目目录下运行以下命令，即可打开 GUI 软件：
 
@@ -303,27 +318,31 @@ docker run -d -p 8000:8000 guovern/iptv-api
 
 #### 环境变量：
 
-| 变量          | 描述       | 默认值                |
-|:------------|:---------|:-------------------|
-| APP_HOST    | 服务host地址 | "http://localhost" |
-| APP_PORT    | 服务端口     | 8000               |
-| UPDATE_CRON | 定时任务执行时间 | "0 22,10 * * *"    |
+| 变量       | 描述       | 默认值  |
+|:---------|:---------|:-----|
+| APP_HOST | 服务host地址 | 本机IP |
+| APP_PORT | 服务端口     | 8000 |
+
+除了以上环境变量，还支持通过环境变量覆盖配置文件中的[配置项](./config.md)
 
 ### 3. 更新结果
 
-| 接口        | 描述         |
-|:----------|:-----------|
-| /         | 默认接口       |
-| /m3u      | m3u 格式接口   |
-| /txt      | txt 格式接口   |
-| /ipv4     | ipv4 默认接口  |
-| /ipv6     | ipv6 默认接口  |
-| /ipv4/txt | ipv4 txt接口 |
-| /ipv6/txt | ipv6 txt接口 |
-| /ipv4/m3u | ipv4 m3u接口 |
-| /ipv6/m3u | ipv6 m3u接口 |
-| /content  | 接口文本内容     |
-| /log      | 测速日志       |
+| 接口              | 描述          |
+|:----------------|:------------|
+| /               | 默认接口        |
+| /m3u            | m3u 格式接口    |
+| /txt            | txt 格式接口    |
+| /ipv4           | ipv4 默认接口   |
+| /ipv6           | ipv6 默认接口   |
+| /ipv4/txt       | ipv4 txt接口  |
+| /ipv6/txt       | ipv6 txt接口  |
+| /ipv4/m3u       | ipv4 m3u接口  |
+| /ipv6/m3u       | ipv6 m3u接口  |
+| /content        | 接口文本内容      |
+| /log/result     | 有效结果的日志     |
+| /log/speed-test | 所有参与测速接口的日志 |
+| /log/statistic  | 统计结果的日志     |
+| /log/nomatch    | 未匹配频道的日志    |
 
 - RTMP 推流：
 

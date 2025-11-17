@@ -9,7 +9,6 @@ from tqdm.asyncio import tqdm_asyncio
 
 import updates.fofa.fofa_map as fofa_map
 import utils.constants as constants
-from updates.proxy import get_proxy, get_proxy_next
 from updates.subscribe import get_channels_by_subscribe_urls
 from utils.channel import (
     get_results_from_multicast_soup,
@@ -18,7 +17,7 @@ from utils.channel import (
 from utils.config import config
 from utils.driver.setup import setup_driver
 from utils.driver.tools import search_submit
-from utils.requests.tools import get_soup_requests, close_session
+from utils.requests.tools import get_soup_requests
 from utils.retry import (
     retry_func,
     find_clickable_element_with_retry,
@@ -48,51 +47,43 @@ async def get_channels_by_hotel(callback=None):
             pass
     if config.open_request:
         page_url = constants.foodie_hotel_url
-        proxy = None
-        open_proxy = config.open_proxy
         open_driver = config.open_driver
         page_num = config.hotel_page_num
         region_list = config.hotel_region_list
         if "all" in region_list or "ALL" in region_list or "全部" in region_list:
             region_list = list(getattr(fofa_map, "region_url").keys())
-        if open_proxy:
-            proxy = await get_proxy(page_url, best=True, with_test=True)
         start_time = time()
 
         def process_region_by_hotel(region):
-            nonlocal proxy
             name = f"{region}"
             info_list = []
             driver = None
+            page_soup = None
+            code = None
             try:
                 if open_driver:
-                    driver = setup_driver(proxy)
+                    driver = setup_driver()
                     try:
                         retry_func(
                             lambda: driver.get(page_url),
                             name=f"Foodie hotel search:{name}",
                         )
                     except Exception as e:
-                        if open_proxy:
-                            proxy = get_proxy_next()
+                        print(e)
                         driver.close()
                         driver.quit()
-                        driver = setup_driver(proxy)
+                        driver = setup_driver()
                         driver.get(page_url)
                     search_submit(driver, name)
                 else:
-                    page_soup = None
                     post_form = {"saerch": name}
-                    code = None
                     try:
                         page_soup = retry_func(
-                            lambda: get_soup_requests(page_url, data=post_form, proxy=proxy),
+                            lambda: get_soup_requests(page_url, data=post_form),
                             name=f"Foodie hotel search:{name}",
                         )
                     except Exception as e:
-                        if open_proxy:
-                            proxy = get_proxy_next()
-                        page_soup = get_soup_requests(page_url, data=post_form, proxy=proxy)
+                        print(e)
                     if not page_soup:
                         print(f"{name}:Request fail.")
                         return info_list
@@ -128,7 +119,7 @@ async def get_channels_by_hotel(callback=None):
                                     f"{page_url}?net={name}&page={page}&code={code}"
                                 )
                                 page_soup = retry_func(
-                                    lambda: get_soup_requests(request_url, proxy=proxy),
+                                    lambda: get_soup_requests(request_url),
                                     name=f"hotel search:{name}, page:{page}",
                                 )
                         soup = get_soup(driver.page_source) if open_driver else page_soup
@@ -195,10 +186,8 @@ async def get_channels_by_hotel(callback=None):
             for item in result
         ]
         request_channels = await get_channels_by_subscribe_urls(
-            urls, hotel=True, retry=False, error_print=False
+            urls, hotel=True, retry=False, error_print=False, pbar_desc="Processing get hotel json"
         )
         channels = merge_objects(channels, request_channels)
-        if not open_driver:
-            close_session()
         pbar.close()
     return channels
